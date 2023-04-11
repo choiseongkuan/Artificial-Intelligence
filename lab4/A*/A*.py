@@ -1,5 +1,5 @@
 from queue import PriorityQueue
-import copy
+import time
 
 
 class Node:
@@ -12,7 +12,7 @@ class Node:
         self.action = action
 
     def __hash__(self):
-        return hash(tuple(self.board))
+        return hash(self.board)
 
     def __eq__(self, other):
         return self.board == other.board
@@ -23,12 +23,13 @@ class Node:
     def move(self, direction):
         illegal_action = {-4: [0, 1, 2, 3], 4: [12, 13, 14, 15], -1: [0, 4, 8, 12], 1: [3, 7, 11, 15]}  # 出界区域
         if self.blank_pos not in illegal_action[direction]:
-            new_board = copy.deepcopy(self.board)
+            new_board = list(self.board)
             new_blank_pos = self.blank_pos + direction
             new_board[self.blank_pos], new_board[new_blank_pos] = new_board[new_blank_pos], new_board[self.blank_pos]
             new_moves = self.moves + 1
             new_heuristic = get_heuristic(new_board)
             new_action = self.board[new_blank_pos]
+            new_board = tuple(new_board)
             return Node(new_board, new_blank_pos, new_moves, new_heuristic, self, new_action)
         else:
             return None
@@ -42,6 +43,18 @@ class Node:
 #     if board[15] != 0:
 #         heuristic += 1
 #     return heuristic
+
+# def get_heuristic(board):  # Manhattan distance
+#     heuristic = 0
+#     for i in range(0, len(board)-1):
+#         x = i // 4
+#         y = i % 4
+#         target_pos = board.index(i+1)
+#         target_x = target_pos // 4
+#         target_y = target_pos % 4
+#         heuristic += abs(x-target_x) + abs(y-target_y)
+#     return heuristic
+
 
 def get_heuristic(board):  # Manhattan distance
     heuristic = 0
@@ -64,7 +77,7 @@ def get_puzzle():
             if row[j] == 0:
                 blank_pos = i * 4 + j
         board.extend(row)
-    return board, blank_pos
+    return tuple(board), blank_pos
 
 
 def print_ans(puzzle_node):
@@ -75,6 +88,7 @@ def print_ans(puzzle_node):
         puzzle_node = puzzle_node.parent
     for node in reversed(path):
         print(node, end=" ")
+    print("\n")
 
 
 def astar(puzzle_board, blank_pos):
@@ -84,7 +98,7 @@ def astar(puzzle_board, blank_pos):
     open_que.put(init_state)
     closed.add(init_state)
     direction = [-4, 4, -1, 1]
-    goal = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0]
+    goal = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0)
 
     while not open_que.empty():
         current_state = open_que.get()
@@ -101,5 +115,8 @@ def astar(puzzle_board, blank_pos):
 
 if __name__ == "__main__":
     puzzle = get_puzzle()
+    time_start = time.time()
     ans = astar(puzzle[0], puzzle[1])
+    time_end = time.time()
     print_ans(ans)
+    print(f"Used time {time_end - time_start} sec")

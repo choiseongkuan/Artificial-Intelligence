@@ -18,8 +18,6 @@ class Node:
         return self.board == other.board
 
     def __lt__(self, other):
-        if self.heuristic + self.moves == other.heuristic + other.moves:
-            return self.heuristic < other.heuristic
         return self.heuristic + self.moves < other.heuristic + other.moves
 
     def move(self, direction):
@@ -79,17 +77,6 @@ def print_ans(puzzle_node):
         print(node, end=" ")
 
 
-def generate_node(current_state, closed):
-    direction = [-4, 4, -1, 1]
-    next_states = []
-    for dire in direction:
-        next_state = current_state.move(dire)
-        if next_state is not None and next_state not in closed:
-            next_states.append(next_state)
-    sorted(next_states, reverse=True)
-    return next_states
-
-
 def search(current_state, limit, path, closed, moves):
     f = current_state.moves + current_state.heuristic
     if f > limit:
@@ -97,16 +84,18 @@ def search(current_state, limit, path, closed, moves):
     if current_state.board == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0]:
         return current_state, f
     min_f = float('inf')
-    next_states = generate_node(current_state, closed)
-    for next_state in next_states:
-        path.append(next_state)
-        closed.add(next_state)
-        found, new_limit = search(next_state, limit, path, closed, moves+1)
-        if found is not None:
-            return found, new_limit
-        min_f = min(min_f, new_limit)
-        path.pop()
-        closed.remove(next_state)
+    direction = [-4, 4, -1, 1]
+    for dire in direction:
+        next_state = current_state.move(dire)
+        if next_state is not None and next_state not in closed:
+            path.append(next_state)
+            closed.add(next_state)
+            found, new_limit = search(next_state, limit, path, closed, moves+1)
+            if found is not None:
+                return found, new_limit
+            min_f = min(min_f, new_limit)
+            path.pop()
+            closed.remove(next_state)
     return None, min_f
 
 

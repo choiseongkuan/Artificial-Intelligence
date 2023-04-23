@@ -143,6 +143,9 @@ class ChessAI(object):
         self.evaluate_class = Evaluate(self.team)
 
     def get_next_step(self, chessboard: ChessBoard):
+        score, move = self.alpha_beta(self.max_depth, -9999999, 9999999, chessboard)
+
+        return move[0][0], move[0][1], move[1][0], move[1][1]
         '''
         该函数应当返回四个值: 
             1 要操作棋子的横坐标 
@@ -169,4 +172,35 @@ class ChessAI(object):
         return tmp_chessboard
 
     def alpha_beta(self, depth, a, b, chessboard: ChessBoard):
+        if depth == 0 or chessboard.judge_win("r"):
+            return self.evaluate_class.evaluate(chessboard), None
+        chess_in_current_team = [chess for chess in chessboard.get_chess() if chess.team == self.team]
+        moves = {}
+        for chess in chess_in_current_team:
+            moves[chess] = list(chessboard.get_put_down_position(chess))
+        best_move = [(0, 0), (0, 0)]
+        if self.team == "b":
+            max_source = -9999999
+            for chess, new_pos in moves.items():
+                best_move[0] = (chess.row, chess.row)
+                new_board = self.get_tmp_chessboard(chessboard, chess, new_pos[0], new_pos[1])
+                score, _ = self.alpha_beta(depth-1, a, b, new_board)
+                if score > max_source:
+                    max_source = score
+                    best_move[1] = new_pos
+                a = max(max_source, a)
+                if a >= b:
+                    break
+            return a, best_move
+        else:
+            min_source = 9999999
+            for chess, new_pos in moves.items():
+                new_board = self.get_tmp_chessboard(chessboard, chess, new_pos[0], new_pos[1])
+                score, _ = self.alpha_beta(depth-1, a, b, new_board)
+                if score < min_source:
+                    min_source = score
+                b = min(min_source, score)
+                if a >= b:
+                    break
+            return b, best_move
         raise NotImplementedError("Method not implemented!!!")

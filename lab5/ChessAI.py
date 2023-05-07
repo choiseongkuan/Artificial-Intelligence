@@ -143,17 +143,21 @@ class ChessAI(object):
         self.evaluate_class = Evaluate(self.team)
 
     def get_next_step(self, chessboard: ChessBoard):
-        score, move = self.alpha_beta(self.max_depth, -9999999, 9999999, chessboard)
-
-        return move[0][0], move[0][1], move[1][0], move[1][1]
-        '''
-        该函数应当返回四个值: 
-            1 要操作棋子的横坐标 
-            2 要操作棋子的纵坐标 
-            3 落子的横坐标
-            4 落子的纵坐标
-        '''
-        raise NotImplementedError("Cannot determin next step!! Implement function ChessAI::get_next_step !!")
+        chess_num = len(chessboard.get_chess())
+        if chess_num > 14:
+            self.max_depth = 5
+        elif chess_num > 7:
+            self.max_depth = 6
+        elif chess_num > 5:
+            self.max_depth = 7
+        elif chess_num > 3:
+            self.max_depth = 8
+        else:
+            self.max_depth = 9
+        # print(f"deep{self.max_depth} and {chess_num}")
+        score, move = self.alpha_beta(1, -9999999, 9999999, chessboard)  # 获取最优选择
+        return move[0][0], move[0][1], move[1][0], move[1][1]  # 返回要移动的内容
+        # raise NotImplementedError("Cannot determin next step!! Implement function ChessAI::get_next_step !!")
 
     @staticmethod
     def get_nxt_player(player):
@@ -172,35 +176,59 @@ class ChessAI(object):
         return tmp_chessboard
 
     def alpha_beta(self, depth, a, b, chessboard: ChessBoard):
-        if depth == 0 or chessboard.judge_win("r"):
+        if depth == self.max_depth:  # 到达最大深度时返回估计值
             return self.evaluate_class.evaluate(chessboard), None
-        chess_in_current_team = [chess for chess in chessboard.get_chess() if chess.team == self.team]
-        moves = {}
-        for chess in chess_in_current_team:
-            moves[chess] = list(chessboard.get_put_down_position(chess))
-        best_move = [(0, 0), (0, 0)]
-        if self.team == "b":
-            max_source = -9999999
-            for chess, new_pos in moves.items():
-                best_move[0] = (chess.row, chess.row)
-                new_board = self.get_tmp_chessboard(chessboard, chess, new_pos[0], new_pos[1])
-                score, _ = self.alpha_beta(depth-1, a, b, new_board)
-                if score > max_source:
-                    max_source = score
-                    best_move[1] = new_pos
-                a = max(max_source, a)
-                if a >= b:
-                    break
-            return a, best_move
-        else:
-            min_source = 9999999
-            for chess, new_pos in moves.items():
-                new_board = self.get_tmp_chessboard(chessboard, chess, new_pos[0], new_pos[1])
-                score, _ = self.alpha_beta(depth-1, a, b, new_board)
-                if score < min_source:
-                    min_source = score
-                b = min(min_source, score)
-                if a >= b:
-                    break
-            return b, best_move
-        raise NotImplementedError("Method not implemented!!!")
+        if depth % 2 == 1:  # Max层
+            chess_in_current_team = [chess for chess in chessboard.get_chess() if chess.team == "b"]  # 获取AI方所有的可用的棋子
+            moves = {}
+            for chess in chess_in_current_team:
+                moves[chess] = list(chessboard.get_put_down_position(chess))  # 获取每个棋子可能的走步
+            best_move = [(0, 0), (0, 0)]  # 初始化最优走步
+            max_source = -9999999  # 初始化最优选择
+            for chess, new_pos_list in moves.items():  # 遍历每一颗棋子
+                for new_pos in new_pos_list:  # 遍历棋子的每一个走步
+                    pos_chess_back = chessboard.chessboard_map[new_pos[0]][new_pos[1]]  # 记录即将被替换的位置的内容
+                    old_pos = (chess.row, chess.col)  # 记录棋子的旧位置
+                    # 更新棋盘走步
+                    chessboard.chessboard_map[new_pos[0]][new_pos[1]] = chessboard.chessboard_map[old_pos[0]][old_pos[1]]  # 在棋盘新位置放下棋子
+                    chessboard.chessboard_map[new_pos[0]][new_pos[1]].update_position(new_pos[0], new_pos[1])  # 更新棋子信息
+                    chessboard.chessboard_map[old_pos[0]][old_pos[1]] = None  # 棋盘中棋子的旧位置为空（被移走）
+                    score, _ = self.alpha_beta(depth+1, a, b, chessboard)  # 递归下一步
+                    # 复原棋盘
+                    chessboard.chessboard_map[old_pos[0]][old_pos[1]] = chessboard.chessboard_map[new_pos[0]][new_pos[1]]  # 在棋盘旧位置放回棋子
+                    chessboard.chessboard_map[old_pos[0]][old_pos[1]].update_position(old_pos[0], old_pos[1])  # 更新棋子信息
+                    chessboard.chessboard_map[new_pos[0]][new_pos[1]] = pos_chess_back  # 棋盘中新位置的内容复原
+                    if score > max_source:  # 发现更优的选择
+                        max_source = score  # 更新评价值
+                        best_move[0] = (chess.row, chess.col)  # 更新最优走步（棋子的位置）
+                        best_move[1] = new_pos  # 更新最优走步（棋子移动到哪）
+                    a = max(max_source, a)  # 更新alpha值
+                    if a >= b:  # alpha>=beta则剪枝
+                        return a, best_move
+            return a, best_move  # 遍历完所有情况，返回上一级
+        else:  # Min层
+            chess_in_current_team = [chess for chess in chessboard.get_chess() if chess.team == "r"]  # 获取对手方所有的可用的棋子
+            moves = {}
+            for chess in chess_in_current_team:
+                moves[chess] = list(chessboard.get_put_down_position(chess))  # 获取每个棋子可能的走步
+            min_source = 9999999  # 初始化最优选择
+            for chess, new_pos_list in moves.items():  # 遍历每一颗棋子
+                for new_pos in new_pos_list:  # 遍历棋子的每一个走步
+                    pos_chess_back = chessboard.chessboard_map[new_pos[0]][new_pos[1]]   # 记录即将被替换的位置的内容
+                    old_pos = (chess.row, chess.col)  # 记录棋子的旧位置
+                    # 更新棋盘走步
+                    chessboard.chessboard_map[new_pos[0]][new_pos[1]] = chessboard.chessboard_map[old_pos[0]][old_pos[1]]  # 在棋盘新位置放下棋子
+                    chessboard.chessboard_map[new_pos[0]][new_pos[1]].update_position(new_pos[0], new_pos[1])  # 更新棋子信息
+                    chessboard.chessboard_map[old_pos[0]][old_pos[1]] = None  # 棋盘中棋子的旧位置为空（被移走）
+                    score, _ = self.alpha_beta(depth+1, a, b, chessboard)  # 递归下一步
+                    # 复原棋盘
+                    chessboard.chessboard_map[old_pos[0]][old_pos[1]] = chessboard.chessboard_map[new_pos[0]][new_pos[1]]  # 在棋盘旧位置放回棋子
+                    chessboard.chessboard_map[old_pos[0]][old_pos[1]].update_position(old_pos[0], old_pos[1])  # 更新棋子信息
+                    chessboard.chessboard_map[new_pos[0]][new_pos[1]] = pos_chess_back  # 棋盘中新位置的内容复原
+                    if score < min_source:  # 发现更优的选择
+                        min_source = score  # 更新评价值
+                    b = min(min_source, score)  # 更新beta值
+                    if a >= b:  # alpha>=beta则剪枝
+                        return b, None
+            return b, None   # 遍历完所有情况，返回上一级
+        # raise NotImplementedError("Method not implemented!!!")
